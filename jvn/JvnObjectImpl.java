@@ -22,7 +22,7 @@ public class JvnObjectImpl implements JvnObject {
 	**/
 	public JvnObjectImpl(Serializable obj, int id) throws Exception {
 		this.id = id;
-		this.lockstate = LockState.NL;
+		this.lockstate = LockState.W; // Write lock on creation
 		this.obj = obj;
 	}
 
