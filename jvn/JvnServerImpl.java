@@ -52,7 +52,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* The JVN service is not used anymore
 	* @throws JvnException
 	**/
-	public  void jvnTerminate() throws jvn.JvnException {
+	public void jvnTerminate() throws JvnException {
 		// to be completed
 	}
 
@@ -61,7 +61,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @param o : the JVN object state
 	* @throws JvnException
 	**/
-	public  JvnObject jvnCreateObject(Serializable o) throws JvnException {
+	public JvnObject jvnCreateObject(Serializable o) throws JvnException {
 		try {
 			int id = coord.jvnGetObjectId();
 			return new JvnObjectImpl(o, id);
@@ -76,7 +76,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @param jo : the JVN object
 	* @throws JvnException
 	**/
-	public  void jvnRegisterObject(String jon, JvnObject jo) throws jvn.JvnException {
+	public void jvnRegisterObject(String jon, JvnObject jo) throws JvnException {
 		//appel remote sur coord (stock hashmap)
 	}
 
@@ -86,7 +86,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the JVN object
 	* @throws JvnException
 	**/
-	public  JvnObject jvnLookupObject(String jon) throws jvn.JvnException {
+	public JvnObject jvnLookupObject(String jon) throws JvnException {
 		//appel remote sur coord (récup hashmap)
 		return null;
 	}
