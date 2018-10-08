@@ -25,8 +25,8 @@ public class JvnObjectImpl implements JvnObject{
 	* Default constructor
     * @throws JvnException
     **/
-	public JvnObjectImpl(Serializable obj) throws Exception {
-		this.id = 1 ; //TODO id
+	public JvnObjectImpl(Serializable obj, int id) throws Exception {
+		this.id = id;
 		this.lockstate= LockState.NL;
 		this.obj = obj;
 	}

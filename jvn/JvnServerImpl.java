@@ -11,6 +11,7 @@ package jvn;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.io.*;
+import java.rmi.registry.*;
 
 
 
@@ -19,8 +20,10 @@ public class JvnServerImpl
 							implements JvnLocalServer, JvnRemoteServer{
 	
   // A JVN server is managed as a singleton 
-	private static JvnServerImpl js = null;
-	
+ private static JvnServerImpl js = null;
+ 
+ private static String host = "localhost";
+ private JvnRemoteCoord coord;
 	
 
   /**
@@ -29,6 +32,8 @@ public class JvnServerImpl
   **/
 	private JvnServerImpl() throws Exception {
 		super();
+                Registry registry = LocateRegistry.getRegistry(this.host);
+                coord = (JvnRemoteCoord) registry.lookup("JavService");
 		
 	}
 	
@@ -64,10 +69,10 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnCreateObject(Serializable o) throws JvnException { 			
 			try {
-				// TODO recup l'id
-				return new JvnObjectImpl(o);
+				int id = coord.jvnGetObjectId();
+				return new JvnObjectImpl(o, id);
 			} catch (Exception e) {
-				throw new JvnException("Erreur en création de l'objet");
+				throw new JvnException("Erreur lors de la création de l'objet");
 			}
 		}
 		
