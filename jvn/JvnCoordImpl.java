@@ -14,17 +14,20 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.io.Serializable;
 import java.rmi.RemoteException;
-
+///////////////////////////////// TODO TODO TODO : Possiblement des méthodes à mettre en synchronized /////////////////////////////////////////////
 public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord {
-	HashMap<Integer, JvnObject> map;
-	private int idCnt = 0;
+	HashMap<Integer, String> mapJoiToName; // Id -> Object name
+	HashMap<String, JvnObject> mapNameToObj; // Object name -> Javanaise Object
+
+	private int idCnt = 0; // Count for JOI
 
 	/**
 	* Default constructor
 	* @throws JvnException
 	**/
 	private JvnCoordImpl() throws Exception {
-		map = new HashMap<>();
+		this.mapJoiToName = new HashMap<>();
+		this.mapNameToObj = new HashMap<>();
 	}
 
 	public void main() throws JvnException {

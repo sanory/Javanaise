@@ -18,9 +18,10 @@ import java.rmi.RemoteException;
 public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer, JvnRemoteServer {
 	// A JVN server is managed as a singleton
 	private static JvnServerImpl js = null;
-
 	private static String host = "localhost";
-	private JvnRemoteCoord coord;
+	private JvnRemoteCoord remoteCoord;
+
+	private HashMap<Integer,JvnObject> objects; // List of objects present on this server
 
 	/**
 	* Default constructor
@@ -28,8 +29,11 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	**/
 	private JvnServerImpl() throws Exception {
 		super();
+
 		Registry registry = LocateRegistry.getRegistry(this.host);
-		coord = (JvnRemoteCoord) registry.lookup("JavService");
+		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");
+
+		this.objects = new HashMap<>();
 	}
 
 	/**
@@ -52,8 +56,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* The JVN service is not used anymore
 	* @throws JvnException
 	**/
-	public void jvnTerminate() throws JvnException {
-		// to be completed
+	public synchronized void jvnTerminate() throws JvnException {
+		try {
+			this.remoteCoord.jvnTerminate(this);
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors de la fermeture du serveur");
+		}
 	}
 
 	/**
@@ -61,10 +69,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @param o : the JVN object state
 	* @throws JvnException
 	**/
-	public JvnObject jvnCreateObject(Serializable o) throws JvnException {
+	public synchronized JvnObject jvnCreateObject(Serializable o) throws JvnException {
 		try {
-			int id = coord.jvnGetObjectId();
-			return new JvnObjectImpl(o, id);
+			int id = this.remoteCoord.jvnGetObjectId();
+			JvnObjectImpl newJO = new JvnObjectImpl(o,id);
+			this.objects.put(id,newJO);
+			return newJO;
 		} catch (Exception e) {
 			throw new JvnException("Erreur lors de la création de l'objet");
 		}
@@ -76,8 +86,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @param jo : the JVN object
 	* @throws JvnException
 	**/
-	public void jvnRegisterObject(String jon, JvnObject jo) throws JvnException {
-		//appel remote sur coord (stock hashmap)
+	public synchronized void jvnRegisterObject(String jon, JvnObject jo) throws JvnException {
+		try {
+			this.remoteCoord.jvnRegisterObject(jon,jo,this);
+		} catch (Exception e) {
+			throw new JvnException("Erreur : Objet non enregistré (nom déjà utilisé ?)");
+		}
 	}
 
 	/**
@@ -86,9 +100,14 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the JVN object
 	* @throws JvnException
 	**/
-	public JvnObject jvnLookupObject(String jon) throws JvnException {
-		//appel remote sur coord (récup hashmap)
-		return null;
+	public synchronized JvnObject jvnLookupObject(String jon) throws JvnException {
+		try {
+			JvnObject newJO = this.remoteCoord.jvnLookupObject(jon,this);
+			if (!this.objects.containsKey(newJO.jvnGetObjectId())) this.objects.put(newJO.jvnGetObjectId(),newJO);
+			return newJO;
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors de la récupération de l'objet");
+		}
 	}
 
 	/**
@@ -97,10 +116,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the current JVN object state
 	* @throws  JvnException
 	**/
-	public Serializable jvnLockRead(int joi) throws JvnException {
-		// to be completed
-		return null;
-
+	public synchronized Serializable jvnLockRead(int joi) throws JvnException {
+		try {
+			return this.remoteCoord.jvnLockRead(joi,this);
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors du verrouillage de l'objet");
+		}
 	}
 	/**
 	* Get a Write lock on a JVN object
@@ -108,9 +129,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the current JVN object state
 	* @throws  JvnException
 	**/
-	public Serializable jvnLockWrite(int joi) throws JvnException {
-		// to be completed
-		return null;
+	public synchronized Serializable jvnLockWrite(int joi) throws JvnException {
+		try {
+			return this.remoteCoord.jvnLockWrite(joi,this);
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors du verrouillage de l'objet");
+		}
 	}
 
 	/**
@@ -120,8 +144,8 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return void
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public void jvnInvalidateReader(int joi) throws JvnException {
-		// to be completed
+	public synchronized void jvnInvalidateReader(int joi) throws JvnException {
+		this.objects.get(joi).jvnInvalidateReader();
 	};
 
 	/**
@@ -130,9 +154,8 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public Serializable jvnInvalidateWriter(int joi) throws RemoteException,JvnException {
-		// to be completed
-		return null;
+	public synchronized Serializable jvnInvalidateWriter(int joi) throws RemoteException,JvnException {
+		return this.objects.get(joi).jvnInvalidateWriter();
 	};
 
 	/**
@@ -141,8 +164,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException {
-		// to be completed
-		return null;
+	public synchronized Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException {
+		return this.objects.get(joi).jvnInvalidateWriterForReader();
 	};
 }

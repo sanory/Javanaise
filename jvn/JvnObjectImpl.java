@@ -30,7 +30,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Get a Read lock on the object
 	* @throws JvnException
 	**/
-	public void jvnLockRead() throws JvnException {
+	public synchronized void jvnLockRead() throws JvnException {
 		switch (this.lockstate) {
 			case NL:
 				// appel serveur
@@ -56,7 +56,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Get a Write lock on the object
 	* @throws JvnException
 	**/
-	public void jvnLockWrite() throws JvnException {
+	public synchronized void jvnLockWrite() throws JvnException {
 		switch (this.lockstate) {
 			case NL:
 				this.obj = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
@@ -91,7 +91,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Unlock  the object
 	* @throws JvnException
 	**/
-	public void jvnUnLock()	throws JvnException {
+	public synchronized void jvnUnLock()	throws JvnException {
 		switch (this.lockstate) {
 			case R:
 				notify();
@@ -135,7 +135,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Invalidate the Read lock of the JVN object
 	* @throws JvnException
 	**/
-	public void jvnInvalidateReader() throws JvnException {
+	public synchronized void jvnInvalidateReader() throws JvnException {
 		switch (this.lockstate) {
 			case R:
 				try {
@@ -160,7 +160,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @return the current JVN object state
 	* @throws JvnException
 	**/
-	public Serializable jvnInvalidateWriter() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
 			try {
 				wait();
@@ -180,7 +180,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @return the current JVN object state
 	* @throws JvnException
 	**/
-	public Serializable jvnInvalidateWriterForReader() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
 		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
 			try {
 				wait();
