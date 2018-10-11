@@ -12,12 +12,15 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 ///////////////////////////////// TODO TODO TODO : Possiblement des méthodes à mettre en synchronized /////////////////////////////////////////////
 public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord {
 	HashMap<Integer, String> mapJoiToName; // Id -> Object name
 	HashMap<String, JvnObject> mapNameToObj; // Object name -> Javanaise Object
+	HashMap<Integer,JvnRemoteServer> lockWrites; // Objects write locked by which JvnServer
+	HashMap<Integer,ArrayList<JvnRemoteServer>> lockReads; // Objects read locked by which JvnServer (multiple possible)
 
 	private int idCnt = 0; // Count for JOI
 
@@ -39,7 +42,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			registry.bind("JavService", j_stub);
 		}
 		catch (Exception e) {
-			throw new JvnException("Erreur en création de l'objet");
+			throw new JvnException("Erreur lors de la création de l'objet");
 		}
 	}
 
@@ -106,6 +109,6 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
-		// to be completed
+		// on récup les objets en WC / RWC / W? du JVN server
 	}
 }
