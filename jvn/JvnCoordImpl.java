@@ -8,8 +8,6 @@
 
 package jvn;
 
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -28,23 +26,12 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* Default constructor
 	* @throws JvnException
 	**/
-	private JvnCoordImpl() throws Exception {
+	public JvnCoordImpl() throws Exception {
 		this.mapJoiToName = new HashMap<>();
 		this.mapNameToObj = new HashMap<>();
 	}
 
-	public void main() throws JvnException {
-		JvnRemoteCoord jav;
-		try {
-			jav = new JvnCoordImpl();
-			JvnRemoteCoord j_stub = (JvnRemoteCoord) UnicastRemoteObject.exportObject(jav, 0);
-			Registry registry = LocateRegistry.getRegistry();
-			registry.bind("JavService", j_stub);
-		}
-		catch (Exception e) {
-			throw new JvnException("Erreur lors de la création de l'objet");
-		}
-	}
+	
 
 	/**
 	*  Allocate a NEW JVN object id (usually allocated to a
