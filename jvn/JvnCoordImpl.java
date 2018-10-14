@@ -29,6 +29,8 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	public JvnCoordImpl() throws Exception {
 		this.mapJoiToName = new HashMap<>();
 		this.mapNameToObj = new HashMap<>();
+		this.lockWrites = new HashMap<>();
+		this.lockReads = new HashMap<>();
 	}
 
 	
@@ -52,7 +54,9 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js) throws RemoteException, JvnException {
-		// to be completed
+		mapJoiToName.put(jo.jvnGetObjectId(), jon);
+		mapNameToObj.put(jon, jo);
+		lockWrites.put(jo.jvnGetObjectId(), js);
 	}
 
 	/**
@@ -62,8 +66,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public JvnObject jvnLookupObject(String jon, JvnRemoteServer js) throws RemoteException, JvnException {
-		// to be completed
-		return null;
+		return mapNameToObj.get(jon);
 	}
 
 	/**
@@ -74,7 +77,21 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		// to be completed
+		if(!lockWrites.containsKey(joi)) {
+			if(lockReads.containsKey(joi)) {
+				ArrayList l = lockReads.get(joi);
+				l.add(js);
+				lockReads.replace(joi, l);
+			}else {
+				ArrayList l = new ArrayList<JvnRemoteServer>();
+				l.add(js);
+				lockReads.put(joi, l);
+			}
+		}
+		else {
+			//TODO envoi de jvnInvalidateWriter() au tenant du verrou write
+		}
+		
 		return null;
 	}
 
