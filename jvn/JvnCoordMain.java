@@ -7,16 +7,16 @@ import java.rmi.server.UnicastRemoteObject;
 public class JvnCoordMain {
 
 	
-	public void main() throws JvnException {
+	public static void main(String argv[]) throws JvnException {
 		JvnRemoteCoord jav;
 		try {
 			jav = new JvnCoordImpl();
-			JvnRemoteCoord j_stub = (JvnRemoteCoord) UnicastRemoteObject.exportObject(jav, 0);
 			Registry registry = LocateRegistry.getRegistry();
-			registry.bind("JavService", j_stub);
+			registry.bind("JavService", jav);
+			System.out.println("Coordinateur pret");
 		}
 		catch (Exception e) {
-			throw new JvnException("Erreur lors de la création de l'objet");
+			System.out.println(e);
 		}
 	}
 }
