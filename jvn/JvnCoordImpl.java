@@ -33,7 +33,6 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		this.lockReads = new HashMap<>();
 	}
 
-	
 
 	/**
 	*  Allocate a NEW JVN object id (usually allocated to a
@@ -79,19 +78,18 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	public Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
 		if(!lockWrites.containsKey(joi)) {
 			if(lockReads.containsKey(joi)) {
-				ArrayList l = lockReads.get(joi);
+				ArrayList<JvnRemoteServer> l = lockReads.get(joi);
 				l.add(js);
 				lockReads.replace(joi, l);
-			}else {
-				ArrayList l = new ArrayList<JvnRemoteServer>();
+			} else {
+				ArrayList<JvnRemoteServer> l = new ArrayList<>();
 				l.add(js);
 				lockReads.put(joi, l);
 			}
-		}
-		else {
+		} else {
 			//TODO envoi de jvnInvalidateWriter() au tenant du verrou write
 		}
-		
+
 		return null;
 	}
 
