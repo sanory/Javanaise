@@ -11,7 +11,7 @@ public class JvnCoordMain {
 		JvnRemoteCoord jav;
 		try {
 			jav = new JvnCoordImpl();
-			Registry registry = LocateRegistry.getRegistry();
+			Registry registry = LocateRegistry.createRegistry(1333);
 			registry.bind("JavService", jav);
 			System.out.println("Coordinateur pret");
 		}

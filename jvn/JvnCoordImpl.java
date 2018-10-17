@@ -13,7 +13,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.io.Serializable;
 import java.rmi.RemoteException;
-///////////////////////////////// TODO TODO TODO : Possiblement des méthodes à mettre en synchronized /////////////////////////////////////////////
+import jvn.JvnObjectImpl.LockState;
+
 public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord {
 	HashMap<Integer, String> mapJoiToName; // Id -> Object name
 	HashMap<String, JvnObject> mapNameToObj; // Object name -> Javanaise Object
@@ -39,7 +40,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	*  newly created JVN object)
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public int jvnGetObjectId() throws RemoteException, JvnException {
+	public synchronized int jvnGetObjectId() throws RemoteException, JvnException {
 		this.idCnt++;
 		return this.idCnt;
 	}
@@ -64,8 +65,19 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @param js : the remote reference of the JVNServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public JvnObject jvnLookupObject(String jon, JvnRemoteServer js) throws RemoteException, JvnException {
-		return mapNameToObj.get(jon);
+	public synchronized JvnObject jvnLookupObject(String jon, JvnRemoteServer js) throws RemoteException, JvnException {
+		try {
+			if(this.mapNameToObj.containsKey(jon)){
+				Serializable s = this.jvnLockRead(this.mapNameToObj.get(jon).jvnGetObjectId(),js);
+				JvnObject newJO = new JvnObjectImpl(s,this.mapNameToObj.get(jon).jvnGetObjectId(),LockState.R);
+				mapNameToObj.replace(jon, newJO);
+				return newJO;
+			} else {
+				return null;
+			}
+		} catch(Exception e) {
+			throw new JvnException("LookUp error : " + e);
+		}
 	}
 
 	/**
@@ -75,22 +87,28 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException, JvnException
 	**/
-	public Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		if(!lockWrites.containsKey(joi)) {
-			if(lockReads.containsKey(joi)) {
-				ArrayList<JvnRemoteServer> l = lockReads.get(joi);
-				l.add(js);
-				lockReads.replace(joi, l);
+	public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
+		try {
+			if(!lockWrites.containsKey(joi)) {
+				if(lockReads.containsKey(joi)) {
+					lockReads.get(joi).add(js);
+				} else {
+					ArrayList<JvnRemoteServer> l = new ArrayList<>();
+					l.add(js);
+					lockReads.put(joi, l);
+				}
 			} else {
-				ArrayList<JvnRemoteServer> l = new ArrayList<>();
-				l.add(js);
-				lockReads.put(joi, l);
+				Serializable o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);
+				JvnObject newJO = new JvnObjectImpl(o,joi);
+				this.mapNameToObj.replace(this.mapJoiToName.get(joi),newJO);
+				this.lockWrites.remove(joi);
+				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,new ArrayList<>());
+				this.lockReads.get(joi).add(js);
 			}
-		} else {
-			//TODO envoi de jvnInvalidateWriter() au tenant du verrou write
+			return this.mapNameToObj.get(this.mapJoiToName.get(joi)).jvnGetObjectState();
+		} catch(Exception e) {
+			throw new JvnException("LockRead error : " + e.getMessage());
 		}
-
-		return null;
 	}
 
 	/**
@@ -100,9 +118,23 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException, JvnException
 	**/
-	public Serializable jvnLockWrite(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		// to be completed
-		return null;
+	public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
+		try {
+			if(!lockWrites.containsKey(joi)) {
+				for(JvnRemoteServer ts : this.lockReads.get(joi)) {
+					ts.jvnInvalidateReader(joi);
+				}
+				this.lockReads.get(joi).clear();
+			} else {
+				Serializable o = this.lockWrites.get(joi).jvnInvalidateWriter(joi);
+				JvnObject newJO = new JvnObjectImpl(o,joi);
+				this.mapNameToObj.replace(this.mapJoiToName.get(joi),newJO);
+				this.lockWrites.remove(joi);
+			}
+			return this.mapNameToObj.get(this.mapJoiToName.get(joi)).jvnGetObjectState();
+		} catch(Exception e) {
+			throw new JvnException("LockWrite error : " + e.getMessage());
+		}
 	}
 
 	/**
@@ -110,7 +142,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @param js  : the remote reference of the server
 	* @throws java.rmi.RemoteException, JvnException
 	**/
-	public void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
+	public synchronized void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
 		// on récup les objets en WC / RWC / W? du JVN server
 	}
 }

@@ -30,7 +30,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	private JvnServerImpl() throws Exception {
 		super();
 
-		Registry registry = LocateRegistry.getRegistry(this.host);
+		Registry registry = LocateRegistry.getRegistry(this.host,1333);
 		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");
 
 		this.objects = new HashMap<>();
@@ -103,9 +103,10 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	public synchronized JvnObject jvnLookupObject(String jon) throws JvnException {
 		try {
 			JvnObject newJO = this.remoteCoord.jvnLookupObject(jon,this);
-			if (!this.objects.containsKey(newJO.jvnGetObjectId())) this.objects.put(newJO.jvnGetObjectId(),newJO);
+			if (newJO!= null && !this.objects.containsKey(newJO.jvnGetObjectId())) this.objects.put(newJO.jvnGetObjectId(),newJO);
 			return newJO;
 		} catch (Exception e) {
+                        System.out.println(e);
 			throw new JvnException("Erreur lors de la récupération de l'objet");
 		}
 	}

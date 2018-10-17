@@ -25,6 +25,16 @@ public class JvnObjectImpl implements JvnObject {
 		this.lockstate = LockState.W; // Write lock on creation
 		this.obj = obj;
 	}
+        
+        /**
+	* Coord constructor
+	* @throws JvnException
+	**/
+        public JvnObjectImpl(Serializable obj, int id, LockState ls) throws Exception {
+		this.id = id;
+		this.lockstate = ls;
+		this.obj = obj;
+	}
 
 	/**
 	* Get a Read lock on the object
@@ -94,18 +104,18 @@ public class JvnObjectImpl implements JvnObject {
 	public synchronized void jvnUnLock()	throws JvnException {
 		switch (this.lockstate) {
 			case R:
-				notify();
 				this.lockstate = LockState.RC;
+                                notify();
 				break;
 
 			case W:
-				notify();
 				this.lockstate = LockState.WC;
+				notify();
 				break;
 
 			case RWC:
-				notify();
 				this.lockstate = LockState.WC;
+				notify();
 				break;
 
 			default: // case WC & RC & NL
