@@ -101,21 +101,21 @@ public class JvnObjectImpl implements JvnObject {
 	* Unlock  the object
 	* @throws JvnException
 	**/
-	public synchronized void jvnUnLock()	throws JvnException {
+	public synchronized void jvnUnLock() throws JvnException {
 		switch (this.lockstate) {
 			case R:
 				this.lockstate = LockState.RC;
-                                notify();
+                                notifyAll();
 				break;
 
 			case W:
 				this.lockstate = LockState.WC;
-				notify();
+				notifyAll();
 				break;
 
 			case RWC:
 				this.lockstate = LockState.WC;
-				notify();
+				notifyAll();
 				break;
 
 			default: // case WC & RC & NL
@@ -128,7 +128,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Get the object identification
 	* @throws JvnException
 	**/
-	public int jvnGetObjectId()	throws JvnException {
+	public int jvnGetObjectId() throws JvnException {
 		return this.id;
 	}
 
@@ -136,7 +136,7 @@ public class JvnObjectImpl implements JvnObject {
 	* Get the object state
 	* @throws JvnException
 	**/
-	public Serializable jvnGetObjectState()	throws JvnException {
+	public Serializable jvnGetObjectState() throws JvnException {
 		return this.obj;
 	}
 
@@ -149,7 +149,7 @@ public class JvnObjectImpl implements JvnObject {
 		switch (this.lockstate) {
 			case R:
 				try {
-					wait();
+                                        while(this.lockstate == LockState.R) wait();
 				} catch(InterruptedException e) {
 					throw new JvnException("InvalidateReader Error");
 				}
@@ -173,7 +173,7 @@ public class JvnObjectImpl implements JvnObject {
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
 			try {
-				wait();
+				while(this.lockstate == LockState.W || this.lockstate == LockState.RWC) wait();
 			} catch(InterruptedException e) {
 				throw new JvnException("InvalidateWriter Error");
 			}
@@ -193,7 +193,7 @@ public class JvnObjectImpl implements JvnObject {
 	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
 		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
 			try {
-				wait();
+				while(this.lockstate == LockState.W || this.lockstate == LockState.RWC) wait();
 			} catch(InterruptedException e) {
 				throw new JvnException("InvalidateWriterForReader Error");
 			}

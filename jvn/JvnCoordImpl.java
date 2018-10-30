@@ -53,7 +53,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @param js  : the remote reference of the JVNServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js) throws RemoteException, JvnException {
+	public synchronized void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js) throws RemoteException, JvnException {
 		mapJoiToName.put(jo.jvnGetObjectId(), jon);
 		mapNameToObj.put(jon, jo);
 		lockWrites.put(jo.jvnGetObjectId(), js);
@@ -99,7 +99,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 				}
 			} else {
 				Serializable o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);
-				JvnObject newJO = new JvnObjectImpl(o,joi);
+				JvnObject newJO = new JvnObjectImpl(o,joi,LockState.R);
 				this.mapNameToObj.replace(this.mapJoiToName.get(joi),newJO);
 				this.lockWrites.remove(joi);
 				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,new ArrayList<>());
