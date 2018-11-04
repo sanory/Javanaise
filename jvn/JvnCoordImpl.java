@@ -130,6 +130,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	**/
 	public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
 		this.l.lock();
+		ArrayList<JvnRemoteServer> l = new ArrayList<>();
 		System.out.println("Lock R : " +  joi);
 		Serializable o;
 		try {
@@ -137,8 +138,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			if(!lockWrites.containsKey(joi)) {
 				if(lockReads.containsKey(joi)) {
 					lockReads.get(joi).add(js);
-				} else {
-					ArrayList<JvnRemoteServer> l = new ArrayList<>();
+				} else {					
 					l.add(js);
 					lockReads.put(joi, l);
 				}
@@ -147,8 +147,9 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 				o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);				
 				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);
 				this.lockWrites.remove(joi);
-				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,new ArrayList<>());
-				this.lockReads.get(joi).add(js);
+				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,l);
+				l.add(js);
+				this.lockReads.put(joi,l);
 				System.out.println("taille des R : "+ this.lockReads.get(joi).size());
 				
 			}
@@ -176,9 +177,10 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			if(!lockWrites.containsKey(joi)) {
 				System.out.println("Ici");
 				if(lockReads.containsKey(joi) && !lockReads.get(joi).isEmpty()) {	
-					
-					for(JvnRemoteServer ts : this.lockReads.get(joi)) {		
-						ts.getId();
+					ArrayList<JvnRemoteServer> al =this.lockReads.get(joi);
+					for(JvnRemoteServer ts : al) {	
+						System.out.println("BUGGG");
+						//ICI le ts qui est dans la list n'est pas le bon
 						ts.jvnInvalidateReader(joi);		
 						System.out.println("la"); 
 					}

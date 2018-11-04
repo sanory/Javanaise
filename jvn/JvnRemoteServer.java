@@ -39,6 +39,6 @@ public interface JvnRemoteServer extends Remote {
 	**/
    public Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException;
 
-   public void getId() throws RemoteException,JvnException;
+   
 
 }
