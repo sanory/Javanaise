@@ -13,6 +13,7 @@ import java.rmi.RemoteException;
 
 /**
 * Remote interface of a JVN server (used by a remote JvnCoord)
+* 
 */
 public interface JvnRemoteServer extends Remote {
 
@@ -38,6 +39,14 @@ public interface JvnRemoteServer extends Remote {
 	* @throws java.rmi.RemoteException,JvnException
 	**/
    public Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException;
+   
+   /**
+	 * Allocate a NEW JVN server id (usually allocated to a newly created JVNServerImp)
+	 *  
+	 * @throws java.rmi.RemoteException
+	 *             ,JvnException
+	 **/
+	public int jvnGetServerId() throws java.rmi.RemoteException, jvn.JvnException;
 
    
 

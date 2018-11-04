@@ -23,7 +23,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	// A JVN server is managed as a singleton
 	private static JvnServerImpl js = null;
 	private JvnRemoteCoord remoteCoord;	
-
+	private int id;
 	private HashMap<Integer,JvnObject> objects; // List of objects present on this server
 
 	/**
@@ -36,7 +36,8 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 		Registry registry = LocateRegistry.getRegistry(1339);
 		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");		
 		this.objects = new HashMap<>();
-		
+		this.id = remoteCoord.jvnGetServerId();
+		System.out.println("Serveur "+ id);
 	}
 
 	/**
@@ -176,6 +177,12 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	public synchronized Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException {
 		System.out.println("InvalideReaderforWriter");
 		return this.objects.get(joi).jvnInvalidateWriterForReader();
+	}
+
+	@Override
+	public int jvnGetServerId() throws RemoteException, JvnException {
+		
+		return this.id;
 	};
 	
 	

@@ -10,8 +10,6 @@ package jvn;
 
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,7 +36,6 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	 * Singleton variable
 	*/
 	private static JvnCoordImpl jc;
-	private Lock l = new ReentrantLock();
 	private int idCnt = 0; // Count for JOI
 	private int idSrv = 0; // Count for servers id
 
@@ -93,12 +90,10 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		if (mapNameToObj.containsKey(jon)) {
 			throw new JvnException("'" + jon + "' is already registered");
 		}else {
-			l.lock();
 			mapJoiToName.put(jo.jvnGetObjectId(), jon);
 			mapNameToJoi.put(jon, jo.jvnGetObjectId());
 			mapNameToObj.put(jon, jo.jvnGetObjectState());
 			lockWrites.put(jo.jvnGetObjectId(), js);
-			l.unlock();
 			System.out.println("Object " + jon + " registered");
 		}
 		
@@ -129,37 +124,34 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		this.l.lock();
-		ArrayList<JvnRemoteServer> l = new ArrayList<>();
+		ArrayList<JvnRemoteServer> l = new ArrayList<JvnRemoteServer>();
 		System.out.println("Lock R : " +  joi);
 		Serializable o;
-		try {
-			
+		try {			
 			if(!lockWrites.containsKey(joi)) {
 				if(lockReads.containsKey(joi)) {
-					lockReads.get(joi).add(js);
-				} else {					
+					l = this.lockReads.get(joi);
+				}									
 					l.add(js);
 					lockReads.put(joi, l);
-				}
+			
 				o = this.mapNameToObj.get(this.mapJoiToName.get(joi));
 			} else {
 				o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);				
 				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);
 				this.lockWrites.remove(joi);
-				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,l);
+				if (lockReads.containsKey(joi)) {
+					l = this.lockReads.get(joi);
+				}
 				l.add(js);
-				this.lockReads.put(joi,l);
-				System.out.println("taille des R : "+ this.lockReads.get(joi).size());
-				
+				this.lockReads.put(joi,l);				
 			}
 			
 		} catch(Exception e) {
-			throw new JvnException("LockRead error : " + e.getMessage());
-		}finally {
-			this.l.unlock();
+			throw new JvnException("LockRead error : " + e.getMessage());	
 		}
 		return o;
+		
 	}
 
 	/**
@@ -170,22 +162,24 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		System.out.println("Lock W : " +  joi);
-		this.l.lock();
+		System.out.println("Lock W ");
 		Serializable o;
 		try {
 			if(!lockWrites.containsKey(joi)) {
 				System.out.println("Ici");
 				if(lockReads.containsKey(joi) && !lockReads.get(joi).isEmpty()) {	
-					ArrayList<JvnRemoteServer> al =this.lockReads.get(joi);
+					ArrayList<JvnRemoteServer> al =new ArrayList<>(this.lockReads.get(joi));
 					for(JvnRemoteServer ts : al) {	
 						System.out.println("BUGGG");
+						
 						//ICI le ts qui est dans la list n'est pas le bon
-						ts.jvnInvalidateReader(joi);		
+						if(!(ts.jvnGetServerId()==js.jvnGetServerId())) {
+						ts.jvnInvalidateReader(joi);	
+						}
 						System.out.println("la"); 
 					}
 				}
-				this.lockReads.get(joi).clear();
+				this.lockReads.remove(joi);
 				o =this.mapNameToObj.get(this.mapJoiToName.get(joi));
 				this.lockWrites.put(joi, js);
 			} else {
@@ -198,7 +192,6 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		} catch(Exception e) {
 			throw new JvnException("LockWrite error : " + e.getMessage());
 		}finally {
-			this.l.unlock();
 		}
 		return o;
 	}
@@ -209,11 +202,9 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
-		l.lock();
 		try {
 			//Trouver et supprimer les références à js
 		} finally{
-			l.unlock();
 		}
 	}
 	
@@ -253,6 +244,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			}
 		}
 	}
+	
 	
 	
 }
