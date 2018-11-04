@@ -11,6 +11,12 @@ package jvn;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import jvn.JvnObjectImpl.LockState;
@@ -144,5 +150,42 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	**/
 	public synchronized void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
 		// on rÃ©cup les objets en WC / RWC / W? du JVN server
+	}
+	
+	public synchronized void jvnSaveCoordState() {
+		try {
+			FileOutputStream backupCoord = new FileOutputStream("coordbackup.txt");
+			ObjectOutputStream oos = new ObjectOutputStream(backupCoord);
+			oos.writeObject(this);
+			oos.flush();
+			oos.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public synchronized void jvnRestoreCoordState() {
+		File f = new File("coordbackup.txt");
+		if (f.exists()) {
+			System.out.println("Restauration de la dernière instance du  coordinateur");
+			try {
+				FileInputStream backupCoord = new FileInputStream("coord.ser");
+				ObjectInputStream ois = new ObjectInputStream(backupCoord);
+				JvnCoordImpl coord = (JvnCoordImpl) ois.readObject();
+				this.mapJoiToName = coord.mapJoiToName;
+				this.mapNameToObj = coord.mapNameToObj;
+				this.lockWrites = coord.lockWrites;
+				this.lockReads = coord.lockReads;
+				this.idCnt = coord.idCnt;				
+				ois.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 }
