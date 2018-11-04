@@ -16,10 +16,13 @@ import java.rmi.RemoteException;
 
 
 public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer, JvnRemoteServer {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2233899666525874150L;
 	// A JVN server is managed as a singleton
 	private static JvnServerImpl js = null;
-	private static String host = "localhost";
-	private JvnRemoteCoord remoteCoord;
+	private JvnRemoteCoord remoteCoord;	
 
 	private HashMap<Integer,JvnObject> objects; // List of objects present on this server
 
@@ -30,9 +33,8 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	private JvnServerImpl() throws Exception {
 		super();
 
-		Registry registry = LocateRegistry.getRegistry(this.host,1333);
-		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");
-
+		Registry registry = LocateRegistry.getRegistry(1339);
+		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");		
 		this.objects = new HashMap<>();
 	}
 
@@ -121,7 +123,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 		try {
 			return this.remoteCoord.jvnLockRead(joi,this);
 		} catch (Exception e) {
-			throw new JvnException("Erreur lors du verrouillage de l'objet");
+			throw new JvnException("Erreur lors du verrouillage de l'objet" + e);
 		}
 	}
 	/**
@@ -134,7 +136,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 		try {
 			return this.remoteCoord.jvnLockWrite(joi,this);
 		} catch (Exception e) {
-			throw new JvnException("Erreur lors du verrouillage de l'objet");
+			throw new JvnException("Erreur lors du verrouillage de l'objet" + e);
 		}
 	}
 

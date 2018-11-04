@@ -22,12 +22,17 @@ import java.rmi.RemoteException;
 import jvn.JvnObjectImpl.LockState;
 
 public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3380652911182601617L;
 	HashMap<Integer, String> mapJoiToName; // Id -> Object name
 	HashMap<String, JvnObject> mapNameToObj; // Object name -> Javanaise Object
 	HashMap<Integer,JvnRemoteServer> lockWrites; // Objects write locked by which JvnServer
 	HashMap<Integer,ArrayList<JvnRemoteServer>> lockReads; // Objects read locked by which JvnServer (multiple possible)
 
 	private int idCnt = 0; // Count for JOI
+	private int idSrv = 0; // Count for servers id
 
 	/**
 	* Default constructor
@@ -152,7 +157,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		// on rÃ©cup les objets en WC / RWC / W? du JVN server
 	}
 	
-	public synchronized void jvnSaveCoordState() {
+	public synchronized void jvnSaveCoord() {
 		try {
 			FileOutputStream backupCoord = new FileOutputStream("coordbackup.txt");
 			ObjectOutputStream oos = new ObjectOutputStream(backupCoord);
@@ -165,7 +170,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		}
 	}
 	
-	public synchronized void jvnRestoreCoordState() {
+	public synchronized void jvnRestoreCoord() {
 		File f = new File("coordbackup.txt");
 		if (f.exists()) {
 			System.out.println("Restauration de la dernière instance du  coordinateur");
@@ -188,4 +193,6 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			}
 		}
 	}
+	
+	
 }

@@ -3,6 +3,10 @@ package jvn;
 import java.io.Serializable;
 
 public class JvnObjectImpl implements JvnObject {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8038646055377784498L;
 	private int id;
 	private LockState lockstate;
 	private Serializable obj;
@@ -74,7 +78,6 @@ public class JvnObjectImpl implements JvnObject {
 				break;
 
 			case R:
-				this.lockstate = LockState.RC;
 				this.obj = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
 				this.lockstate = LockState.W;
 				break;
@@ -89,7 +92,8 @@ public class JvnObjectImpl implements JvnObject {
 				break;
 
 			case RWC:
-				throw new JvnException("Passage du lock de RWC à W !");
+				this.lockstate = LockState.W;
+				break;
 
 			default: // case W
 				// Rien à faire
@@ -105,17 +109,20 @@ public class JvnObjectImpl implements JvnObject {
 		switch (this.lockstate) {
 			case R:
 				this.lockstate = LockState.RC;
-                                notifyAll();
+				System.out.println("Wait ended");
+                notify();
 				break;
 
 			case W:
 				this.lockstate = LockState.WC;
-				notifyAll();
+				System.out.println("Wait ended");
+				notify();
 				break;
 
 			case RWC:
 				this.lockstate = LockState.WC;
-				notifyAll();
+				System.out.println("Wait ended");
+				notify();
 				break;
 
 			default: // case WC & RC & NL
@@ -148,8 +155,9 @@ public class JvnObjectImpl implements JvnObject {
 	public synchronized void jvnInvalidateReader() throws JvnException {
 		switch (this.lockstate) {
 			case R:
-				try {
-                                        while(this.lockstate == LockState.R) wait();
+				try {                    
+                    System.out.println("waiting reader");
+                    wait();             
 				} catch(InterruptedException e) {
 					throw new JvnException("InvalidateReader Error");
 				}
@@ -160,8 +168,9 @@ public class JvnObjectImpl implements JvnObject {
 				this.lockstate = LockState.NL;
 				break;
 
-			default: // case W & WC & NL & RWC
-				throw new JvnException("InvalidateReader Error");
+			default: 
+				this.lockstate = LockState.NL;
+				
 		}
 	}
 
@@ -171,18 +180,24 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
-		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
-			try {
-				while(this.lockstate == LockState.W || this.lockstate == LockState.RWC) wait();
+		switch(this.lockstate){
+		case W:
+		case RWC:
+			try {				
+				wait();
+				System.out.println("waiting writer");
+				
 			} catch(InterruptedException e) {
 				throw new JvnException("InvalidateWriter Error");
 			}
 			this.lockstate = LockState.NL;
 			return obj;
-		} else if (this.lockstate == LockState.WC) {
+		case WC:
 			this.lockstate = LockState.NL;
 			return obj;
-		} else throw new JvnException("InvalidateWriter Error"); // case R & RC & NL
+		default:
+			throw new JvnException("InvalidateWriter when no writeLock");
+		}
 	}
 
 	/**
@@ -191,17 +206,32 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
-		if (this.lockstate == LockState.W || this.lockstate == LockState.RWC) {
+		switch(this.lockstate) {
+		case W:
 			try {
-				while(this.lockstate == LockState.W || this.lockstate == LockState.RWC) wait();
-			} catch(InterruptedException e) {
-				throw new JvnException("InvalidateWriterForReader Error");
+				System.out.println("Wait for invalidateWriterForReader : W");
+				wait();
+				this.lockstate = LockState.RC;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-			this.lockstate = LockState.RC;
-			return obj;
-		} else if (this.lockstate == LockState.WC) {
-			this.lockstate = LockState.RC;
-			return obj;
-		} else throw new JvnException("InvalidateWriterForReader Error"); // case R & RC & NL
+			break;
+		case RWC:
+			try {
+				System.out.println("Wait for invalidateWriterForReader : RWC");
+				wait();
+				lockstate = LockState.R;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			break;
+		case WC:		
+			lockstate = LockState.RC;
+			break;
+		default:
+			throw new JvnException("InvalidateWriterForReader called when no write lock");
 	}
+	
+	return jvnGetObjectState();
+}
 }
