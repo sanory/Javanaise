@@ -45,6 +45,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized void jvnLockRead() throws JvnException {
+		System.out.println("Lock R ");
 		switch (this.lockstate) {
 			case NL:
 				// appel serveur
@@ -71,6 +72,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized void jvnLockWrite() throws JvnException {
+		System.out.println("Lock W ");
 		switch (this.lockstate) {
 			case NL:
 				this.obj = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
@@ -182,6 +184,7 @@ public class JvnObjectImpl implements JvnObject {
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		switch(this.lockstate){
 		case W:
+			System.out.println("waiting HELLO");
 		case RWC:
 			try {				
 				wait();
