@@ -23,7 +23,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	// A JVN server is managed as a singleton
 	private static JvnServerImpl js = null;
 	private JvnRemoteCoord remoteCoord;	
-
+	private int id;
 	private HashMap<Integer,JvnObject> objects; // List of objects present on this server
 
 	/**
@@ -36,6 +36,8 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 		Registry registry = LocateRegistry.getRegistry(1339);
 		this.remoteCoord = (JvnRemoteCoord) registry.lookup("JavService");		
 		this.objects = new HashMap<>();
+		this.id = remoteCoord.jvnGetServerId();
+		System.out.println("Serveur "+ id);
 	}
 
 	/**
@@ -78,7 +80,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 			this.objects.put(id,newJO);
 			return newJO;
 		} catch (Exception e) {
-			throw new JvnException("Erreur lors de la création de l'objet");
+			throw new JvnException("Erreur lors de la création de l'objet :"+ e);
 		}
 	}
 
@@ -92,7 +94,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 		try {
 			this.remoteCoord.jvnRegisterObject(jon,jo,this);
 		} catch (Exception e) {
-			throw new JvnException("Erreur : Objet non enregistré (nom déjà utilisé ?)");
+			throw new JvnException("Erreur : Objet non enregistré (nom déjà utilisé ?) ");
 		}
 	}
 
@@ -105,7 +107,10 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	public synchronized JvnObject jvnLookupObject(String jon) throws JvnException {
 		try {
 			JvnObject newJO = this.remoteCoord.jvnLookupObject(jon,this);
-			if (newJO!= null && !this.objects.containsKey(newJO.jvnGetObjectId())) this.objects.put(newJO.jvnGetObjectId(),newJO);
+			if (newJO!= null) {
+				this.objects.put(newJO.jvnGetObjectId(),newJO);
+			}
+				
 			return newJO;
 		} catch (Exception e) {
                         System.out.println(e);
@@ -148,6 +153,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public synchronized void jvnInvalidateReader(int joi) throws JvnException {
+		System.out.println("InvalideReader");
 		this.objects.get(joi).jvnInvalidateReader();
 	};
 
@@ -158,6 +164,7 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public synchronized Serializable jvnInvalidateWriter(int joi) throws RemoteException,JvnException {
+		System.out.println("InvalideWriter");
 		return this.objects.get(joi).jvnInvalidateWriter();
 	};
 
@@ -168,6 +175,15 @@ public class JvnServerImpl extends UnicastRemoteObject implements JvnLocalServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public synchronized Serializable jvnInvalidateWriterForReader(int joi) throws RemoteException,JvnException {
+		System.out.println("InvalideReaderforWriter");
 		return this.objects.get(joi).jvnInvalidateWriterForReader();
+	}
+
+	@Override
+	public int jvnGetServerId() throws RemoteException, JvnException {
+		
+		return this.id;
 	};
+	
+	
 }

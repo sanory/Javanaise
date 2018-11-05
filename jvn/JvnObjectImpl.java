@@ -45,6 +45,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized void jvnLockRead() throws JvnException {
+		System.out.println("Lock R ");
 		switch (this.lockstate) {
 			case NL:
 				// appel serveur
@@ -61,8 +62,7 @@ public class JvnObjectImpl implements JvnObject {
 				break;
 
 			default: // case R & W & RWC
-				// Rien à faire
-				break;
+				throw new JvnException("Read lock already taken");
 		}
 	}
 
@@ -71,6 +71,7 @@ public class JvnObjectImpl implements JvnObject {
 	* @throws JvnException
 	**/
 	public synchronized void jvnLockWrite() throws JvnException {
+		System.out.println("Obj Lock W ");
 		switch (this.lockstate) {
 			case NL:
 				this.obj = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
@@ -95,8 +96,7 @@ public class JvnObjectImpl implements JvnObject {
 				this.lockstate = LockState.W;
 				break;
 
-			default: // case W
-				// Rien à faire
+			default: 
 				break;
 		}
 	}
@@ -126,8 +126,7 @@ public class JvnObjectImpl implements JvnObject {
 				break;
 
 			default: // case WC & RC & NL
-				// Rien à faire
-				break;
+				throw new JvnException("No lock taken");
 		}
 	}
 
@@ -154,6 +153,7 @@ public class JvnObjectImpl implements JvnObject {
 	**/
 	public synchronized void jvnInvalidateReader() throws JvnException {
 		switch (this.lockstate) {
+			case RWC:
 			case R:
 				try {                    
                     System.out.println("waiting reader");
@@ -198,6 +198,7 @@ public class JvnObjectImpl implements JvnObject {
 		default:
 			throw new JvnException("InvalidateWriter when no writeLock");
 		}
+		
 	}
 
 	/**

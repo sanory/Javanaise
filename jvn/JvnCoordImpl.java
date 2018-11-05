@@ -27,10 +27,15 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	 */
 	private static final long serialVersionUID = -3380652911182601617L;
 	HashMap<Integer, String> mapJoiToName; // Id -> Object name
-	HashMap<String, JvnObject> mapNameToObj; // Object name -> Javanaise Object
+	HashMap<String, Integer> mapNameToJoi; // Id -> Object name
+	HashMap<String, Serializable> mapNameToObj; // Object name -> Javanaise Object
 	HashMap<Integer,JvnRemoteServer> lockWrites; // Objects write locked by which JvnServer
 	HashMap<Integer,ArrayList<JvnRemoteServer>> lockReads; // Objects read locked by which JvnServer (multiple possible)
 
+	/**
+	 * Singleton variable
+	*/
+	private static JvnCoordImpl jc;
 	private int idCnt = 0; // Count for JOI
 	private int idSrv = 0; // Count for servers id
 
@@ -40,9 +45,21 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	**/
 	public JvnCoordImpl() throws Exception {
 		this.mapJoiToName = new HashMap<>();
+		this.mapNameToJoi = new HashMap<>();
 		this.mapNameToObj = new HashMap<>();
 		this.lockWrites = new HashMap<>();
 		this.lockReads = new HashMap<>();
+	}
+	
+	public static JvnCoordImpl jvnGetServer() {
+		if (jc == null){
+			try {
+				jc = new JvnCoordImpl();
+			} catch (Exception e) {
+				return null;
+			}
+		}
+		return jc;
 	}
 
 
@@ -55,6 +72,11 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 		this.idCnt++;
 		return this.idCnt;
 	}
+	
+	public synchronized int jvnGetServerId() throws RemoteException, JvnException {
+		this.idSrv++;
+		return this.idSrv;
+	}
 
 	/**
 	* Associate a symbolic name with a JVN object
@@ -65,29 +87,32 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public synchronized void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js) throws RemoteException, JvnException {
-		mapJoiToName.put(jo.jvnGetObjectId(), jon);
-		mapNameToObj.put(jon, jo);
-		lockWrites.put(jo.jvnGetObjectId(), js);
+		if (mapNameToObj.containsKey(jon)) {
+			throw new JvnException("'" + jon + "' is already registered");
+		}else {
+			mapJoiToName.put(jo.jvnGetObjectId(), jon);
+			mapNameToJoi.put(jon, jo.jvnGetObjectId());
+			mapNameToObj.put(jon, jo.jvnGetObjectState());
+			lockWrites.put(jo.jvnGetObjectId(), js);
+			System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
+		}
+		
 	}
 
 	/**
 	* Get the reference of a JVN object managed by a given JVN server
 	* @param jon : the JVN object name
 	* @param js : the remote reference of the JVNServer
-	* @throws java.rmi.RemoteException,JvnException
+	 * @throws Exception 
 	**/
-	public synchronized JvnObject jvnLookupObject(String jon, JvnRemoteServer js) throws RemoteException, JvnException {
-		try {
-			if(this.mapNameToObj.containsKey(jon)){
-				Serializable s = this.jvnLockRead(this.mapNameToObj.get(jon).jvnGetObjectId(),js);
-				JvnObject newJO = new JvnObjectImpl(s,this.mapNameToObj.get(jon).jvnGetObjectId(),LockState.R);
-				mapNameToObj.replace(jon, newJO);
-				return newJO;
-			} else {
-				return null;
-			}
-		} catch(Exception e) {
-			throw new JvnException("LookUp error : " + e);
+	public synchronized JvnObject jvnLookupObject(String jon, JvnRemoteServer js) throws Exception {
+		try {			
+			Serializable jo = mapNameToObj.get(jon);
+			int id = mapNameToJoi.get(jon);
+			System.out.println("Object " + jon + " find");
+			return new JvnObjectImpl(jo, id, LockState.NL);
+		} catch (NullPointerException e) {
+			return null;
 		}
 	}
 
@@ -99,27 +124,40 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		try {
+		ArrayList<JvnRemoteServer> l = new ArrayList<JvnRemoteServer>();
+		System.out.println("Lock R de : " +  js.jvnGetServerId() );
+		Serializable o;
+		try {			
 			if(!lockWrites.containsKey(joi)) {
 				if(lockReads.containsKey(joi)) {
-					lockReads.get(joi).add(js);
-				} else {
-					ArrayList<JvnRemoteServer> l = new ArrayList<>();
+					l = this.lockReads.get(joi);
+				}									
 					l.add(js);
 					lockReads.put(joi, l);
-				}
+					System.out.println("Le lock R est au serveur " + js.jvnGetServerId());
+			
+				o = this.mapNameToObj.get(this.mapJoiToName.get(joi));
 			} else {
-				Serializable o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);
-				JvnObject newJO = new JvnObjectImpl(o,joi,LockState.R);
-				this.mapNameToObj.replace(this.mapJoiToName.get(joi),newJO);
+				o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);				
+				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);				
+				int id = this.lockWrites.get(joi).jvnGetServerId();					
+				System.out.println("Le lock W retiré au serveur :" + id);
+				l.add(this.lockWrites.get(joi));
 				this.lockWrites.remove(joi);
-				if (!lockReads.containsKey(joi)) this.lockReads.put(joi,new ArrayList<>());
-				this.lockReads.get(joi).add(js);
+				System.out.println("Le lock R est au serveur " + id);
+				if (lockReads.containsKey(joi)) {
+					l.addAll(this.lockReads.get(joi));
+				}
+				l.add(js);
+				this.lockReads.put(joi,l);		
+				System.out.println("Le lock R est au serveur " + js.jvnGetServerId());
 			}
-			return this.mapNameToObj.get(this.mapJoiToName.get(joi)).jvnGetObjectState();
+			
 		} catch(Exception e) {
-			throw new JvnException("LockRead error : " + e.getMessage());
+			throw new JvnException("LockRead error : " + e.getMessage());	
 		}
+		return o;
+		
 	}
 
 	/**
@@ -130,22 +168,42 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
+		System.out.println("Lock W :" + js.jvnGetServerId());
+		Serializable o;
 		try {
 			if(!lockWrites.containsKey(joi)) {
-				for(JvnRemoteServer ts : this.lockReads.get(joi)) {
-					ts.jvnInvalidateReader(joi);
+				if(lockReads.containsKey(joi) && !lockReads.get(joi).isEmpty()) {	
+					ArrayList<JvnRemoteServer> al =this.lockReads.get(joi);
+					for(int i=0; i<al.size(); i++) {	
+							if(!(al.get(i).jvnGetServerId()==js.jvnGetServerId())) {
+								System.out.println("Le lock R est retiré au serveur " + al.get(i).jvnGetServerId());
+								al.get(i).jvnInvalidateReader(joi);	
+							}else {
+								System.out.println("Le lock R est retiré au serveur " + js.jvnGetServerId());							
+							}
+						}
 				}
 				this.lockReads.get(joi).clear();
+				o =this.mapNameToObj.get(this.mapJoiToName.get(joi));
+				this.lockWrites.put(joi, js);
+				System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
 			} else {
-				Serializable o = this.lockWrites.get(joi).jvnInvalidateWriter(joi);
-				JvnObject newJO = new JvnObjectImpl(o,joi);
-				this.mapNameToObj.replace(this.mapJoiToName.get(joi),newJO);
-				this.lockWrites.remove(joi);
+				if(!(this.lockWrites.get(joi).jvnGetServerId()==js.jvnGetServerId())) {
+					o = this.lockWrites.get(joi).jvnInvalidateWriter(joi);	
+				}else {
+					o =this.mapNameToObj.get(this.mapJoiToName.get(joi));
+				}
+				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);
+				this.lockWrites.put(joi, js);
+				System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
+				
 			}
-			return this.mapNameToObj.get(this.mapJoiToName.get(joi)).jvnGetObjectState();
+			
 		} catch(Exception e) {
 			throw new JvnException("LockWrite error : " + e.getMessage());
+		}finally {
 		}
+		return o;
 	}
 
 	/**
@@ -154,7 +212,10 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized void jvnTerminate(JvnRemoteServer js) throws RemoteException, JvnException {
-		// on rÃ©cup les objets en WC / RWC / W? du JVN server
+		try {
+			//Trouver et supprimer les références à js
+		} finally{
+		}
 	}
 	
 	public synchronized void jvnSaveCoord() {
@@ -193,6 +254,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			}
 		}
 	}
+	
 	
 	
 }
