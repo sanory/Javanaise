@@ -94,7 +94,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 			mapNameToJoi.put(jon, jo.jvnGetObjectId());
 			mapNameToObj.put(jon, jo.jvnGetObjectState());
 			lockWrites.put(jo.jvnGetObjectId(), js);
-			System.out.println("Object " + jon + " registered");
+			System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
 		}
 		
 	}
@@ -125,7 +125,7 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	**/
 	public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
 		ArrayList<JvnRemoteServer> l = new ArrayList<JvnRemoteServer>();
-		System.out.println("Lock R : " +  joi);
+		System.out.println("Lock R de : " +  js.jvnGetServerId() );
 		Serializable o;
 		try {			
 			if(!lockWrites.containsKey(joi)) {
@@ -134,17 +134,23 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 				}									
 					l.add(js);
 					lockReads.put(joi, l);
+					System.out.println("Le lock R est au serveur " + js.jvnGetServerId());
 			
 				o = this.mapNameToObj.get(this.mapJoiToName.get(joi));
 			} else {
 				o = this.lockWrites.get(joi).jvnInvalidateWriterForReader(joi);				
-				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);
+				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);				
+				int id = this.lockWrites.get(joi).jvnGetServerId();					
+				System.out.println("Le lock W retiré au serveur :" + id);
+				l.add(this.lockWrites.get(joi));
 				this.lockWrites.remove(joi);
+				System.out.println("Le lock R est au serveur " + id);
 				if (lockReads.containsKey(joi)) {
-					l = this.lockReads.get(joi);
+					l.addAll(this.lockReads.get(joi));
 				}
 				l.add(js);
-				this.lockReads.put(joi,l);				
+				this.lockReads.put(joi,l);		
+				System.out.println("Le lock R est au serveur " + js.jvnGetServerId());
 			}
 			
 		} catch(Exception e) {
@@ -162,30 +168,34 @@ public class JvnCoordImpl extends UnicastRemoteObject implements JvnRemoteCoord 
 	* @throws java.rmi.RemoteException, JvnException
 	**/
 	public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js) throws RemoteException, JvnException {
-		System.out.println("Lock W ");
+		System.out.println("Lock W :" + js.jvnGetServerId());
 		Serializable o;
 		try {
 			if(!lockWrites.containsKey(joi)) {
-				System.out.println("Ici");
 				if(lockReads.containsKey(joi) && !lockReads.get(joi).isEmpty()) {	
-					ArrayList<JvnRemoteServer> al =new ArrayList<>(this.lockReads.get(joi));
-					for(JvnRemoteServer ts : al) {	
-						System.out.println("BUGGG");
-						
-						//ICI le ts qui est dans la list n'est pas le bon
-						if(!(ts.jvnGetServerId()==js.jvnGetServerId())) {
-						ts.jvnInvalidateReader(joi);	
+					ArrayList<JvnRemoteServer> al =this.lockReads.get(joi);
+					for(int i=0; i<al.size(); i++) {	
+							if(!(al.get(i).jvnGetServerId()==js.jvnGetServerId())) {
+								System.out.println("Le lock R est retiré au serveur " + al.get(i).jvnGetServerId());
+								al.get(i).jvnInvalidateReader(joi);	
+							}else {
+								System.out.println("Le lock R est retiré au serveur " + js.jvnGetServerId());							
+							}
 						}
-						System.out.println("la"); 
-					}
 				}
-				this.lockReads.remove(joi);
+				this.lockReads.get(joi).clear();
 				o =this.mapNameToObj.get(this.mapJoiToName.get(joi));
 				this.lockWrites.put(joi, js);
+				System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
 			} else {
-				o = this.lockWrites.get(joi).jvnInvalidateWriter(joi);				
+				if(!(this.lockWrites.get(joi).jvnGetServerId()==js.jvnGetServerId())) {
+					o = this.lockWrites.get(joi).jvnInvalidateWriter(joi);	
+				}else {
+					o =this.mapNameToObj.get(this.mapJoiToName.get(joi));
+				}
 				this.mapNameToObj.put(this.mapJoiToName.get(joi),o);
 				this.lockWrites.put(joi, js);
+				System.out.println("Le lock W est au serveur " + js.jvnGetServerId());
 				
 			}
 			
